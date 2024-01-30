@@ -114,7 +114,9 @@ def main():
     ax.scatter(oddPortStats.xAxis(), oddPortStats.yAxis(), c=oddPortStats.color(), label=oddPortStats.label())
     ax.scatter(erroredPortStats.xAxis(), erroredPortStats.yAxis(), c=erroredPortStats.color(), label=erroredPortStats.label())
     # ax.axis([0, PortStats.TOTAL_PORTS, 0, 30])
-    ax.axis([0, PortStats.TOTAL_PORTS, PortStats.TOTAL_MIN_LATENCY, PortStats.TOTAL_MAX_LATENCY + 0.25])
+
+    ax.set_yscale('log', base=2)
+    ax.axis([0, PortStats.TOTAL_PORTS, PortStats.TOTAL_MIN_LATENCY, PortStats.TOTAL_MAX_LATENCY])
     
     ax.set_ylabel("Latency (ms)")
     ax.set_xlabel("Connection #")
