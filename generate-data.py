@@ -1,33 +1,33 @@
 #!/usr/bin/env python3
-import resource
-import os
 import random
 import time
 import threading
 import socket
 import signal
 import struct
-
-# runsettings
-NUM_CONNECTIONS = 56511
-# NUM_CONNECTIONS = 11
-RANDOM_WINDOW_SIZE = 1000
-ENABLE_RANDOM_OFFSET = False
-RNG_SEED = 1
+import argparse
 
 SRC_IP = "127.9.9.1"
 DEST_IP = "127.9.9.2"
-DEST_PORT = 9999
+DEST_PORT = 999
 IP_BIND_ADDRESS_NO_PORT = 24
 IP_LOCAL_PORT_RANGE	= 51
-MAX_PORT = (2**16) - 1
-MIN_PORT = MAX_PORT - 56511
 
 class ServerState:
     canceled = False
     started = False
     thread = None
 serverState = ServerState()
+
+class ConnectState:
+    min_port = 0
+    max_port = 0
+    random_offset_window = 0
+
+    def connections(self):
+        return self.max_port - self.min_port + 1
+
+connectState = ConnectState()
 
 def server():
     connections = []
@@ -54,16 +54,21 @@ def server():
 def progClosed(arg1, arg2):
     serverState.canceled = True
     serverState.thread.join()
+    exit(0)
 
 def getPortRange():
-    return (MIN_PORT, MAX_PORT, MAX_PORT - MIN_PORT)
+    global connectState
+    return (connectState.min_port, connectState.max_port, connectState.connections())
 
 def randomizePortRangeOffset(portRange):
+    global connectState
+    if connectState.random_offset_window <= 0:
+        return portRange
     (min, max, range) = portRange
-    newRange = RANDOM_WINDOW_SIZE
+    newRange = connectState.random_offset_window
     offset = random.randint(min, max - newRange)
     t = (offset, offset + newRange, newRange)
-    return t if ENABLE_RANDOM_OFFSET else portRange
+    return t
 
 def packPortRange(portRange):
     (min, max, range) = portRange
@@ -72,10 +77,11 @@ def packPortRange(portRange):
     return bytes
 
 def makeConnections(dataFileName):
+    global connectState
     connections = []
     dataFile = open(dataFileName, 'w+')
 
-    for i in range(0, NUM_CONNECTIONS):
+    for i in range(0, connectState.connections()):
         errored = False
         sk = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sk.setsockopt(socket.IPPROTO_IP, IP_BIND_ADDRESS_NO_PORT, 1)
@@ -103,21 +109,28 @@ def makeConnections(dataFileName):
 
 def main():
     global serverState
-    random.seed(RNG_SEED)
-    (softRLimit, hardRLimit) = resource.getrlimit(resource.RLIMIT_NOFILE)
-    resource.setrlimit(resource.RLIMIT_NOFILE, (hardRLimit, hardRLimit))
+    global connectState
 
-    uname = os.uname()
-    dataFileName = "{}-{}.csv".format(
-        int(time.time()),
-        uname.release)
+    parser = argparse.ArgumentParser(description='Generates a .csv of data points')
+    parser.add_argument('--random_offset_window',type=int,help='when specified enables the feature. this sets the window size')
+    parser.add_argument('port_range', help='min,max ex. 9024,65535')
+    parser.add_argument('data_filename')
+    args = parser.parse_args()
+    print(args)
+    
+    (rmin,rmax) = args.port_range.split(',')
+    connectState.min_port = int(rmin)
+    connectState.max_port = int(rmax)
+    connectState.random_offset_window = int(args.random_offset_window)
+
+    dataFileName = "{}.csv".format(args.data_filename)
     
     signal.signal(signal.SIGINT, progClosed)
 
     print("expected connections: {} min port: {} max port: {}".format(
-        NUM_CONNECTIONS,
-        MIN_PORT,
-        MAX_PORT))
+        connectState.connections(),
+        connectState.min_port,
+        connectState.max_port))
     print("filename: {}".format(dataFileName))
 
     serverState.thread = threading.Thread(target=server)

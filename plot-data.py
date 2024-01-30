@@ -40,7 +40,7 @@ class PortStats:
         PortStats.TOTAL_MAX_LATENCY = latency if latency > PortStats.TOTAL_MAX_LATENCY else PortStats.TOTAL_MAX_LATENCY
     
     def avgLatency(self):
-        return self.latency / self.total
+        return self.latency / max(1, self.total)
     
     def __str__(self):
         return "{} ports: {} latency min: {}ms max: {}ms avg: {}ms".format(
@@ -97,7 +97,7 @@ def main():
         "latency: min: {}ms max: {}ms avg: {}ms".format(
             round(PortStats.TOTAL_MIN_LATENCY, 3), 
             round(PortStats.TOTAL_MAX_LATENCY, 3),
-            round(PortStats.TOTAL_LATENCY / PortStats.TOTAL_PORTS, 3)
+            round(PortStats.TOTAL_LATENCY / max(1, PortStats.TOTAL_PORTS), 3)
         ),
         str(evenPortStats),
         str(oddPortStats),
